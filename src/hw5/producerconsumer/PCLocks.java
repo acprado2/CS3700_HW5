@@ -1,12 +1,17 @@
+package hw5.producerconsumer;
+
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
-
-public class PCSynchronized 
+public class PCLocks 
 {
 	// buffer
 	public static int buf = 0;
-	public static Object lock = new Object();
+	public static Lock lock = new ReentrantLock();
+	public static Condition available = lock.newCondition();
 	
 	public static void main( String args[] ) throws InterruptedException
 	{
@@ -41,14 +46,14 @@ public class PCSynchronized
 		
 		for ( int i = 0; i < numProducers; i++ )
 		{
-			Thread t = new Thread( new producerSynchronized( i + 1 ) );
+			Thread t = new Thread( new producerLocks( i + 1 ) );
 			t.start();
 			producers.add( t );
 		}
 		
 		for ( int i = 0; i < numConsumers; i++ )
 		{
-			Thread t = new Thread( new consumerSynchronized( i + 1 ) );
+			Thread t = new Thread( new consumerLocks( i + 1 ) );
 			t.start();
 		}
 		
@@ -69,11 +74,11 @@ public class PCSynchronized
 	}
 }
 
-class producerSynchronized implements Runnable
+class producerLocks implements Runnable
 {
 	private int threadNum;
 	
-	public producerSynchronized( int threadNum )
+	public producerLocks( int threadNum )
 	{
 		this.threadNum = threadNum;
 	}
@@ -95,30 +100,37 @@ class producerSynchronized implements Runnable
 	}
 	
 	private void produce( int num ) throws InterruptedException
-	{	
-		synchronized ( PCSynchronized.lock )
+	{		
+		// Get the lock
+		PCLocks.lock.lock();
+		try
 		{
 			// Buffer is full
-			while ( PCSynchronized.buf == 10 )
+			while ( PCLocks.buf == 10 )
 			{
-				PCSynchronized.lock.wait();
+				PCLocks.available.await();
 			}
 			
 			// Produce
-			PCSynchronized.buf++;
+			PCLocks.buf++;
 			System.out.println( "Producer " + threadNum + ": Produced Object " + num );
 			
 			// Notify consumers
-			PCSynchronized.lock.notifyAll();
+			PCLocks.available.signalAll();	
+		}
+		finally
+		{
+			// Release lock
+			PCLocks.lock.unlock();
 		}
 	}
 }
 
-class consumerSynchronized implements Runnable
+class consumerLocks implements Runnable
 {
 	private int threadNum;
 	
-	public consumerSynchronized( int threadNum )
+	public consumerLocks( int threadNum )
 	{
 		this.threadNum = threadNum;
 	}
@@ -144,20 +156,27 @@ class consumerSynchronized implements Runnable
 	
 	private void consume() throws InterruptedException
 	{
-		synchronized ( PCSynchronized.lock )
+		// Get the lock
+		PCLocks.lock.lock();
+		try
 		{
 			// Buffer is empty
-			while ( PCSynchronized.buf == 0 )
+			while ( PCLocks.buf == 0 )
 			{
-				PCSynchronized.lock.wait();
+				PCLocks.available.await();
 			}
 			
 			// Consume
-			PCSynchronized.buf--;
+			PCLocks.buf--;
 			System.out.println( "Consumer " + threadNum + ": Consumed Object" );
 			
 			// Notify producers
-			PCSynchronized.lock.notifyAll();
+			PCLocks.available.signalAll();
 		}
-	}		
+		finally
+		{
+			// Release lock
+			PCLocks.lock.unlock();
+		}
+	}	
 }
