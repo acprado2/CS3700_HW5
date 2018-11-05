@@ -1,15 +1,11 @@
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.atomic.AtomicInteger;
 
-public class PCLocks 
+public class PCAtomic 
 {
 	// buffer
-	public static int buf = 0;
-	public static Lock lock = new ReentrantLock();
-	public static Condition available = lock.newCondition();
+	public static AtomicInteger buf = new AtomicInteger( 0 );
 	
 	public static void main( String args[] ) throws InterruptedException
 	{
@@ -44,14 +40,14 @@ public class PCLocks
 		
 		for ( int i = 0; i < numProducers; i++ )
 		{
-			Thread t = new Thread( new producerLocks( i + 1 ) );
+			Thread t = new Thread( new producerAtomic( i + 1 ) );
 			t.start();
 			producers.add( t );
 		}
 		
 		for ( int i = 0; i < numConsumers; i++ )
 		{
-			Thread t = new Thread( new consumerLocks( i + 1 ) );
+			Thread t = new Thread( new consumerAtomic( i + 1 ) );
 			t.start();
 		}
 		
@@ -72,11 +68,11 @@ public class PCLocks
 	}
 }
 
-class producerLocks implements Runnable
+class producerAtomic implements Runnable
 {
 	private int threadNum;
 	
-	public producerLocks( int threadNum )
+	public producerAtomic( int threadNum )
 	{
 		this.threadNum = threadNum;
 	}
@@ -99,36 +95,28 @@ class producerLocks implements Runnable
 	
 	private void produce( int num ) throws InterruptedException
 	{		
-		// Get the lock
-		PCLocks.lock.lock();
-		try
+
+		// Keep trying until we produce something
+		while ( true )
 		{
-			// Buffer is full
-			while ( PCLocks.buf == 10 )
+			int cur = PCAtomic.buf.get();
+			
+			// Check if we can produce
+			if ( cur < 10 && PCAtomic.buf.compareAndSet( cur , cur + 1 ) )
 			{
-				PCLocks.available.await();
+				// Produced
+				System.out.println( "Producer " + threadNum + ": Produced Object " + num );
+				return;
 			}
-			
-			// Produce
-			PCLocks.buf++;
-			System.out.println( "Producer " + threadNum + ": Produced Object " + num );
-			
-			// Notify consumers
-			PCLocks.available.signalAll();	
-		}
-		finally
-		{
-			// Release lock
-			PCLocks.lock.unlock();
 		}
 	}
 }
 
-class consumerLocks implements Runnable
+class consumerAtomic implements Runnable
 {
 	private int threadNum;
 	
-	public consumerLocks( int threadNum )
+	public consumerAtomic( int threadNum )
 	{
 		this.threadNum = threadNum;
 	}
@@ -154,27 +142,18 @@ class consumerLocks implements Runnable
 	
 	private void consume() throws InterruptedException
 	{
-		// Get the lock
-		PCLocks.lock.lock();
-		try
+		// Keep trying until we consume something
+		while ( true )
 		{
-			// Buffer is empty
-			while ( PCLocks.buf == 0 )
+			int cur = PCAtomic.buf.get();
+			
+			// Check if we can consume
+			if ( cur > 0 && PCAtomic.buf.compareAndSet( cur , cur - 1 )  )
 			{
-				PCLocks.available.await();
+				// Consumed
+				System.out.println( "Consumer " + threadNum + ": Consumed Object" );
+				return;
 			}
-			
-			// Consume
-			PCLocks.buf--;
-			System.out.println( "Consumer " + threadNum + ": Consumed Object" );
-			
-			// Notify producers
-			PCLocks.available.signalAll();
-		}
-		finally
-		{
-			// Release lock
-			PCLocks.lock.unlock();
 		}
 	}	
 }

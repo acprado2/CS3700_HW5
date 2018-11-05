@@ -106,7 +106,7 @@ class producerSynchronized implements Runnable
 			
 			// Produce
 			PCSynchronized.buf++;
-			System.out.println( "Producer " + threadNum + ": Produced object " + num );
+			System.out.println( "Producer " + threadNum + ": Produced Object " + num );
 			
 			// Notify consumers
 			PCSynchronized.lock.notifyAll();
