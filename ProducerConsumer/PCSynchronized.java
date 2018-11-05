@@ -96,20 +96,20 @@ class producerSynchronized implements Runnable
 	
 	private void produce( int num ) throws InterruptedException
 	{	
-		synchronized ( PCLocks.lock )
+		synchronized ( PCSynchronized.lock )
 		{
 			// Buffer is full
-			while ( PCLocks.buf == 10 )
+			while ( PCSynchronized.buf == 10 )
 			{
-				PCLocks.lock.wait();
+				PCSynchronized.lock.wait();
 			}
 			
 			// Produce
-			PCLocks.buf++;
+			PCSynchronized.buf++;
 			System.out.println( "Producer " + threadNum + ": Produced object " + num );
 			
 			// Notify consumers
-			PCLocks.lock.notifyAll();
+			PCSynchronized.lock.notifyAll();
 		}
 	}
 }
@@ -144,20 +144,20 @@ class consumerSynchronized implements Runnable
 	
 	private void consume() throws InterruptedException
 	{
-		synchronized ( PCLocks.lock )
+		synchronized ( PCSynchronized.lock )
 		{
 			// Buffer is empty
-			while ( PCLocks.buf == 0 )
+			while ( PCSynchronized.buf == 0 )
 			{
-				PCLocks.lock.wait();
+				PCSynchronized.lock.wait();
 			}
 			
 			// Consume
-			PCLocks.buf--;
+			PCSynchronized.buf--;
 			System.out.println( "Consumer " + threadNum + ": Consumed Object" );
 			
 			// Notify producers
-			PCLocks.lock.notifyAll();
+			PCSynchronized.lock.notifyAll();
 		}
 	}		
 }
